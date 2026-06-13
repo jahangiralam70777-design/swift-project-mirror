@@ -35,7 +35,7 @@ function AdminLogin() {
       await signInWithEmail(emailVal, pwVal, { intent: "admin" });
       const user = await refreshAuth();
       if (!user) throw new Error("Session not found");
-      if (user.role !== "admin") {
+      if (user.role !== "admin" && user.role !== "super_admin") {
         // Strict separation: only admin-role accounts may use /admin/login.
         // Sign non-admins out and STAY on /admin/login (no cross-redirect).
         await signOut().catch(() => undefined);

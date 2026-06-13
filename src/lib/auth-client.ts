@@ -42,6 +42,14 @@ export type AuthUser = {
   role: AppRole;
 };
 
+function roleFromAppMetadata(appMetadata: Record<string, unknown> | undefined): AppRole | null {
+  const role = typeof appMetadata?.role === "string" ? appMetadata.role : null;
+  const roles = Array.isArray(appMetadata?.roles) ? appMetadata.roles : [];
+  if (role === "super_admin" || roles.includes("super_admin")) return "super_admin";
+  if (role === "admin" || roles.includes("admin")) return "admin";
+  return null;
+}
+
 // H-3: readLocalAuthSnapshot was previously used as a role fallback when
 // the user_roles lookup timed out. That fallback has been removed — role
 // is now derived strictly from the server response (fail-closed to
@@ -61,7 +69,7 @@ export async function signInWithEmail(
   if (error) throw error;
 
   // Resolve role from user_roles (admin / super_admin / moderator / student / user)
-  let role: string = "student";
+  let role: AppRole = roleFromAppMetadata(data.user?.app_metadata as Record<string, unknown>) ?? "student";
   try {
     const uid = data.user?.id;
     if (uid) {
@@ -72,8 +80,6 @@ export async function signInWithEmail(
       const roles = (roleRows ?? []).map((r) => r.role as string);
       if (roles.includes("super_admin")) role = "super_admin";
       else if (roles.includes("admin")) role = "admin";
-      else if (roles.includes("moderator")) role = "moderator";
-      else if (roles.length > 0) role = roles[0];
     }
   } catch (e) {
     // Fail-OPEN to "student" if role lookup fails — we then apply the gate,
@@ -82,7 +88,7 @@ export async function signInWithEmail(
     console.warn("[auth] role lookup after sign-in failed", e);
   }
 
-  const isPrivileged = role === "admin" || role === "super_admin" || role === "moderator";
+  const isPrivileged = role === "admin" || role === "super_admin";
   if (options.intent !== "admin" && !isPrivileged) {
     try {
       const r = await checkAuthAllowed({ data: { kind: "login" } });
@@ -263,10 +269,14 @@ export async function fetchSessionUser(session?: Session | null): Promise<AuthUs
   // network blip. Fail closed to "student" — admin routes still gate
   // on a fresh server-verified `verifyAdminAccess()` call (H-4), so a
   // legitimate admin sees the real role within one round trip.
-  const role: AppRole =
-    Array.isArray(roles) && roles.some((r) => r.role === "admin" || r.role === "super_admin")
-      ? "admin"
-      : "student";
+  const metadataRole = roleFromAppMetadata(resolvedSession.user.app_metadata as Record<string, unknown>);
+  const role: AppRole = Array.isArray(roles)
+    ? roles.some((r) => r.role === "super_admin")
+      ? "super_admin"
+      : roles.some((r) => r.role === "admin")
+        ? "admin"
+        : (metadataRole ?? "student")
+    : (metadataRole ?? "student");
 
   return {
     id: userId,
