@@ -924,7 +924,7 @@ function PostEditorModal({
       setForm(EMPTY_FORM);
       return;
     }
-    getFn({ data: { id: postId } }).then((p) => {
+    getFn({ data: { id: postId } }).then((p: any) => {
       if (!p) return;
       setForm({
         id: p.id,
