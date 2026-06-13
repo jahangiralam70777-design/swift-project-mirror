@@ -2,56 +2,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const REMEMBER_KEY = 'edumaster.remember_me';
-
-/**
- * Switching storage adapter for Supabase auth tokens.
- *
- * - When "Remember Me" is ON  → writes session to localStorage (survives browser restart, up to 30 days).
- * - When "Remember Me" is OFF → writes session to sessionStorage (cleared when the tab/browser closes).
- *
- * Reads check both stores so existing sessions migrate seamlessly. Writes always
- * remove the key from the *other* store first to avoid duplicate/stale tokens.
- * Removes clear from both stores (used on signOut).
- */
-function createSwitchingStorage(): Storage {
-  const remembered = () => {
-    try { return localStorage.getItem(REMEMBER_KEY) === '1'; } catch { return true; }
-  };
-  return {
-    getItem(key) {
-      try {
-        return sessionStorage.getItem(key) ?? localStorage.getItem(key);
-      } catch { return null; }
-    },
-    setItem(key, value) {
-      try {
-        if (remembered()) {
-          sessionStorage.removeItem(key);
-          localStorage.setItem(key, value);
-        } else {
-          localStorage.removeItem(key);
-          sessionStorage.setItem(key, value);
-        }
-      } catch { /* noop */ }
-    },
-    removeItem(key) {
-      try { localStorage.removeItem(key); } catch { /* noop */ }
-      try { sessionStorage.removeItem(key); } catch { /* noop */ }
-    },
-    clear() {
-      try { localStorage.clear(); } catch { /* noop */ }
-      try { sessionStorage.clear(); } catch { /* noop */ }
-    },
-    key(i) {
-      try { return sessionStorage.key(i) ?? localStorage.key(i); } catch { return null; }
-    },
-    get length() {
-      try { return sessionStorage.length + localStorage.length; } catch { return 0; }
-    },
-  } as Storage;
-}
-
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -70,7 +20,7 @@ function createSupabaseClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? createSwitchingStorage() : undefined,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
     }
