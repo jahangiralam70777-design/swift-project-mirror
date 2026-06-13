@@ -285,9 +285,9 @@ function RootInner() {
       // real role is being resolved. Only auto-forward confirmed admins;
       // everyone else stays put on the admin sign-in page.
       if (path === "/admin/login") {
-        return user.role === "admin" ? "/admin" : null;
+        return user.role === "admin" || user.role === "super_admin" ? "/admin" : null;
       }
-      return user.role === "admin" ? "/admin" : "/dashboard";
+      return user.role === "admin" || user.role === "super_admin" ? "/admin" : "/dashboard";
     }
     if (!hasPersistedSession && (isAdminRoute || isStudentRoute)) return "/login";
     return null;

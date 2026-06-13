@@ -263,10 +263,13 @@ export async function fetchSessionUser(session?: Session | null): Promise<AuthUs
   // network blip. Fail closed to "student" — admin routes still gate
   // on a fresh server-verified `verifyAdminAccess()` call (H-4), so a
   // legitimate admin sees the real role within one round trip.
-  const role: AppRole =
-    Array.isArray(roles) && roles.some((r) => r.role === "admin" || r.role === "super_admin")
-      ? "admin"
-      : "student";
+  const role: AppRole = Array.isArray(roles)
+    ? roles.some((r) => r.role === "super_admin")
+      ? "super_admin"
+      : roles.some((r) => r.role === "admin")
+        ? "admin"
+        : "student"
+    : "student";
 
   return {
     id: userId,

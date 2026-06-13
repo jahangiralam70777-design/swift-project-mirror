@@ -27,10 +27,9 @@ export const verifyAdminAccess = createServerFn({ method: "GET" })
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle();
+        .in("role", ["admin", "super_admin"]);
       if (error) throw error;
-      return { isAdmin: !!data, userId };
+      return { isAdmin: Array.isArray(data) && data.length > 0, userId };
     } catch (error) {
       console.warn("[verifyAdminAccess] role lookup degraded", {
         userId,
