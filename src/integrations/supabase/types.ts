@@ -7,35 +7,82 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      [tableName: string]: {
-        Row: Record<string, any>
-        Insert: Record<string, any>
-        Update: Record<string, any>
-        Relationships: any[]
+      site_settings: {
+        Row: {
+          created_at: string
+          draft_value: Json
+          id: string
+          key: string
+          published_at: string | null
+          published_value: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          draft_value?: Json
+          id?: string
+          key: string
+          published_at?: string | null
+          published_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          draft_value?: Json
+          id?: string
+          key?: string
+          published_at?: string | null
+          published_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
-      [viewName: string]: {
-        Row: Record<string, any>
-        Relationships: any[]
-      }
+      [_ in never]: never
     }
     Functions: {
-      [funcName: string]: {
-        Args: Record<string, any>
-        Returns: any
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
-      [enumName: string]: string
+      app_role: "admin" | "moderator" | "user" | "student" | "super_admin"
     }
     CompositeTypes: {
-      [typeName: string]: any
+      [_ in never]: never
     }
   }
 }
@@ -159,6 +206,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {} as Record<string, string[]>,
+    Enums: {
+      app_role: ["admin", "moderator", "user", "student", "super_admin"],
+    },
   },
 } as const
