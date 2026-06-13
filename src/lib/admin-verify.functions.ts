@@ -29,7 +29,17 @@ export const verifyAdminAccess = createServerFn({ method: "GET" })
         .eq("user_id", userId)
         .in("role", ["admin", "super_admin"]);
       if (error) throw error;
-      return { isAdmin: Array.isArray(data) && data.length > 0, userId };
+      const claims = context.claims as {
+        app_metadata?: { role?: string; roles?: unknown[] };
+      };
+      const metadataRole = claims.app_metadata?.role;
+      const metadataRoles = claims.app_metadata?.roles ?? [];
+      const isMetadataAdmin =
+        metadataRole === "admin" ||
+        metadataRole === "super_admin" ||
+        metadataRoles.includes("admin") ||
+        metadataRoles.includes("super_admin");
+      return { isAdmin: (Array.isArray(data) && data.length > 0) || isMetadataAdmin, userId };
     } catch (error) {
       console.warn("[verifyAdminAccess] role lookup degraded", {
         userId,
