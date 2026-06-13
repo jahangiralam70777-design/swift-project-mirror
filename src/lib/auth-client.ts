@@ -88,7 +88,7 @@ export async function signInWithEmail(
     console.warn("[auth] role lookup after sign-in failed", e);
   }
 
-  const isPrivileged = role === "admin" || role === "super_admin" || role === "moderator";
+  const isPrivileged = role === "admin" || role === "super_admin";
   if (options.intent !== "admin" && !isPrivileged) {
     try {
       const r = await checkAuthAllowed({ data: { kind: "login" } });
