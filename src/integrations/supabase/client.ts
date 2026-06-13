@@ -2,59 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const REMEMBER_KEY = 'edumaster.remember_me';
-
-/**
- * Switching storage adapter for Supabase auth tokens.
- *
- * - When "Remember Me" is ON  → writes session to localStorage (survives browser restart, up to 30 days).
- * - When "Remember Me" is OFF → writes session to sessionStorage (cleared when the tab/browser closes).
- *
- * Reads check both stores so existing sessions migrate seamlessly. Writes always
- * remove the key from the *other* store first to avoid duplicate/stale tokens.
- * Removes clear from both stores (used on signOut).
- */
-function createSwitchingStorage(): Storage {
-  const remembered = () => {
-    try { return localStorage.getItem(REMEMBER_KEY) === '1'; } catch { return true; }
-  };
-  return {
-    getItem(key) {
-      try {
-        return sessionStorage.getItem(key) ?? localStorage.getItem(key);
-      } catch { return null; }
-    },
-    setItem(key, value) {
-      try {
-        if (remembered()) {
-          sessionStorage.removeItem(key);
-          localStorage.setItem(key, value);
-        } else {
-          localStorage.removeItem(key);
-          sessionStorage.setItem(key, value);
-        }
-      } catch { /* noop */ }
-    },
-    removeItem(key) {
-      try { localStorage.removeItem(key); } catch { /* noop */ }
-      try { sessionStorage.removeItem(key); } catch { /* noop */ }
-    },
-    clear() {
-      try { localStorage.clear(); } catch { /* noop */ }
-      try { sessionStorage.clear(); } catch { /* noop */ }
-    },
-    key(i) {
-      try { return sessionStorage.key(i) ?? localStorage.key(i); } catch { return null; }
-    },
-    get length() {
-      try { return sessionStorage.length + localStorage.length; } catch { return 0; }
-    },
-  } as Storage;
-}
-
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
@@ -70,7 +18,7 @@ function createSupabaseClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? createSwitchingStorage() : undefined,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
     }
@@ -79,12 +27,11 @@ function createSupabaseClient() {
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
-  get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
-    return Reflect.get(_supabase, prop, receiver);
-  },
-});
+export function getSupabaseClient() {
+  if (!_supabase) {
+    _supabase = createSupabaseClient();
+  }
+  return _supabase;
+}
 
+export const supabase = getSupabaseClient();

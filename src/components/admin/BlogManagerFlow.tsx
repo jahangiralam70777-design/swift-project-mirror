@@ -924,7 +924,7 @@ function PostEditorModal({
       setForm(EMPTY_FORM);
       return;
     }
-    getFn({ data: { id: postId } }).then((p) => {
+    getFn({ data: { id: postId } }).then((p: any) => {
       if (!p) return;
       setForm({
         id: p.id,
@@ -2134,25 +2134,25 @@ function SeoCenterSection() {
   }, [posts, selectedId]);
 
   const wordCount = post
-    ? ((post.content ?? "").replace(/<[^>]+>/g, " ").match(/\b\w+\b/g) ?? []).length
+    ? (((post as any).content ?? "").replace(/<[^>]+>/g, " ").match(/\b\w+\b/g) ?? []).length
     : 0;
 
   const form: EditorForm | null = post
     ? {
-        id: post.id,
-        slug: post.slug,
-        title: post.title,
-        excerpt: post.excerpt ?? "",
-        content: post.content ?? "",
-        cover_image_url: post.cover_image_url ?? "",
-        status: post.status as any,
-        category_id: post.category_id ?? "",
-        reading_minutes: post.reading_minutes ?? 1,
-        seo_title: post.seo_title ?? "",
-        seo_description: post.seo_description ?? "",
-        og_image_url: post.og_image_url ?? "",
-        tag_ids: post.tag_ids ?? [],
-        published_at: post.published_at ?? "",
+        id: (post as any).id,
+        slug: (post as any).slug,
+        title: (post as any).title,
+        excerpt: (post as any).excerpt ?? "",
+        content: (post as any).content ?? "",
+        cover_image_url: (post as any).cover_image_url ?? "",
+        status: (post as any).status as any,
+        category_id: (post as any).category_id ?? "",
+        reading_minutes: (post as any).reading_minutes ?? 1,
+        seo_title: (post as any).seo_title ?? "",
+        seo_description: (post as any).seo_description ?? "",
+        og_image_url: (post as any).og_image_url ?? "",
+        tag_ids: (post as any).tag_ids ?? [],
+        published_at: (post as any).published_at ?? "",
       }
     : null;
 

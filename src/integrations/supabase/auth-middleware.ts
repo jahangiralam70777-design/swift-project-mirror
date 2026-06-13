@@ -5,77 +5,6 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 
 
-const AUTH_RPC_TIMEOUT_MS = 3500;
-
-function describeRpcError(error: unknown) {
-  if (error && typeof error === 'object') {
-    const e = error as {
-      message?: string;
-      code?: string;
-      details?: string;
-      hint?: string;
-      stack?: string;
-      status?: number;
-    };
-    return {
-      message: e.message ?? String(error),
-      code: e.code,
-      details: e.details,
-      hint: e.hint,
-      status: e.status,
-      stack: e.stack,
-    };
-  }
-  return { message: String(error) };
-}
-
-async function rpcBoolean(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  rpc: 'is_admin' | 'is_user_banned',
-  userId: string,
-  requestPath: string,
-  fallback: boolean,
-): Promise<boolean> {
-  const startedAt = Date.now();
-
-  try {
-    const result = await Promise.race([
-      supabase.rpc(rpc, { _user_id: userId }),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error(`${rpc} timed out after ${AUTH_RPC_TIMEOUT_MS}ms`)), AUTH_RPC_TIMEOUT_MS);
-      }),
-    ]);
-
-    const { data, error } = result as { data: unknown; error: unknown };
-    if (error) throw error;
-
-    const value = data === true;
-    if (data == null) {
-      console.warn('[auth-middleware] auth RPC returned nullish result', {
-        rpc,
-        userId,
-        requestPath,
-        latencyMs: Date.now() - startedAt,
-        fallback,
-      });
-    }
-
-    return value;
-  } catch (error) {
-    console.warn('[auth-middleware] auth RPC failed', {
-      rpc,
-      userId,
-      requestPath,
-      latencyMs: Date.now() - startedAt,
-      fallback,
-      error: describeRpcError(error),
-    });
-    return fallback;
-  }
-}
-
-
 
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
@@ -94,7 +23,6 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     }
     
     const request = getRequest();
-    const requestPath = request ? new URL(request.url).pathname : 'unknown';
 
     if (!request?.headers) {
       throw new Error('Unauthorized: No request headers available');
@@ -140,28 +68,6 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     if (!data.claims.sub) {
       throw new Error('Unauthorized: No user ID found in token');
     }
-
-    // Ban enforcement — admins are never blocked.
-    // FAIL OPEN on RPC error (treat as not-banned) so a missing/broken helper
-    // does not lock the entire app out of admin tooling. Only an explicit
-    // banned=true result blocks the request.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
-    const isAdmin = await rpcBoolean(sb, 'is_admin', data.claims.sub, requestPath, false);
-
-    if (!isAdmin) {
-      const isBanned = await rpcBoolean(sb, 'is_user_banned', data.claims.sub, requestPath, false);
-      if (isBanned) {
-        console.warn('[auth-middleware] blocked banned user', {
-          userId: data.claims.sub,
-          requestPath,
-        });
-        throw new Error('Forbidden: account suspended');
-      }
-    }
-
-
-
 
     return next({
       context: {
